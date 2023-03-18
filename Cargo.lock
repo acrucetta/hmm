@@ -418,7 +418,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "thought-capturer"
+name = "thg"
 version = "0.1.0"
 dependencies = [
  "chrono",
