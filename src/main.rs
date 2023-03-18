@@ -80,7 +80,7 @@ fn add_thought(thought: &String) {
 
 fn list_thoughts() {
     if !std::path::Path::new("thoughts.csv").exists() {
-        println!("No thoughts found, add one with `thg add (thought)`");
+        println!("No thoughts found, add one with `hmm add (thought)`");
         return;
     } 
     let mut reader = csv::Reader::from_path("thoughts.csv").unwrap();
