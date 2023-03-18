@@ -20,8 +20,15 @@ fn get_next_id() -> u32 {
                 last_line = line.unwrap();
             }
             let split: Vec<&str> = last_line.split(",").collect();
-            let id = split[0].parse::<u32>().unwrap();
-            id + 1
+            if split.len() == 0 {
+                return 1;
+            }
+            // If we're returning the header row, return 1
+            if split[0] == "id" {
+                return 1;
+            }
+            let last_id = split[0].parse::<u32>().unwrap();
+            last_id + 1
         }
         Err(_) => 1,
     }
