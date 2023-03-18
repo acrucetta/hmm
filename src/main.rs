@@ -87,7 +87,7 @@ fn list_thoughts() {
     }
 }
 
-fn remove_thought(id: &u32) {
+fn remove_thought(id: &String) {
     let file = File::open("thoughts.csv").unwrap();
     let reader = BufReader::new(file);
     let writer_file = File::create("temp.csv").unwrap();
@@ -96,7 +96,7 @@ fn remove_thought(id: &u32) {
     for line in reader.lines() {
         let line = line.unwrap();
         let split: Vec<&str> = line.split(",").collect();
-        let current_id = split[0].parse::<u32>().unwrap();
+        let current_id = split[0];
         if current_id != *id {
             writer.write_record(split).unwrap();
         }
@@ -118,9 +118,10 @@ fn main() {
         .subcommand(
             Command::new("rm")
                 .about("Remove a thought")
-                .arg(arg!([id]))
+                .arg(arg!([THOGUHT_ID]))
                 .arg_required_else_help(true),
         )
+        .subcommand(Command::new("clear").about("Remove all thoughts"))
         .get_matches();
 
     match matches.subcommand() {
@@ -130,9 +131,32 @@ fn main() {
         }
         Some(("ls", _sub_matches)) => list_thoughts(),
         Some(("rm", sub_matches)) => {
-            let id = sub_matches.get_one::<u32>("id").unwrap();
+            let id = sub_matches.get_one::<String>("THOGUHT_ID").unwrap();
             remove_thought(id);
+        }
+        Some(("clear", _sub_matches)) => {
+            remove_all_thoughts();
         }
         _ => println!("No subcommand was used"),
     }
+}
+
+fn remove_all_thoughts() -> () {
+    // Confirm that the user wants to delete all thoughts
+    println!("Are you sure you want to delete all thoughts? (y/n):");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+    if input.trim() != "y" {
+        return;
+    }
+
+    // Deletes all the rows in the CSV file
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open("thoughts.csv")
+        .unwrap();
+
+    // Write the header row
+    writeln!(file, "id,timestamp,message,tags").unwrap();
 }
