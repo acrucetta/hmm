@@ -14,7 +14,7 @@ cargo install thg
 Here are the available commands and their usage:
 
 ```bash
-thg + [-t TAGS]   # Add a new thought
+thg +   # Add a new thought
 thg ls            # List all thoughts
 thg rm ID       # Remove a thought by ID
 ```

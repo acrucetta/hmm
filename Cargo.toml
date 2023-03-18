@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 chrono = "0.4.24"
-clap = "4.1.10"
+clap = {version="4.1.10", features=["cargo"]}
 csv = "1.2.1"
-serde = "1.0.157"
+serde = { version = "1.0", features = ["derive"] }
