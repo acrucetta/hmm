@@ -1,4 +1,2 @@
 id,timestamp,message,tags
-1,2023-03-18,thought 3,
-2,2023-03-18,thought 4,
-3,2023-03-18,thought 4,learning
+1,2023-03-18,Learn more about CLI tools in Rust,programming
