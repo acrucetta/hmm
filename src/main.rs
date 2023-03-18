@@ -98,12 +98,12 @@ fn remove_thought(id: u32) {
 fn main() {
     let matches = cli::build_cli().get_matches();
     match matches.subcommand() {
-        ("add", Some(matches)) => {
+        ("+", Some(matches)) => {
             let tags = matches.value_of("tags");
             add_thought(tags);
         }
-        ("list", Some(_)) => list_thoughts(),
-        ("remove", Some(matches)) => {
+        ("ls", Some(_)) => list_thoughts(),
+        ("rm", Some(matches)) => {
             let id = matches.value_of("id").unwrap().parse::<u32>().unwrap();
             remove_thought(id)
         }
