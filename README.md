@@ -1,25 +1,62 @@
-# thg
+# thg - A CLI Tool for Capturing Thoughts in Rust
 
-thg is a command-line tool for capturing your thoughts in the terminal. It allows you to add, list, and remove thoughts with simple commands.
+## Overview
+
+`thg` is a simple CLI tool written in Rust that allows you to capture your thoughts and ideas in the terminal. With `thg`, you can quickly jot down a new thought, list all your thoughts, remove a thought by its ID, or clear all your thoughts. Your thoughts are saved in a CSV file, which you can later export and share with others.
 
 ## Installation
 
-To install thg, you'll need to have Rust installed on your system. Once you have Rust installed, you can install thg using Cargo:
+To install `thg`, you need to have Rust and Cargo installed on your system. If you don't have Rust and Cargo installed, you can download them from the [official Rust website](https://www.rust-lang.org/tools/install).
 
-```bash
-cargo install thg
-```
+Once you have Rust and Cargo installed, you can install `thg` by running the following command:
 
-### Usage
-Here are the available commands and their usage:
+`cargo install --git https://github.com/acrucetta/thought-capturer.git`
 
-```bash
-thg +   # Add a new thought
-thg ls            # List all thoughts
-thg rm ID       # Remove a thought by ID
-```
-To add a new thought, use the add command. You'll be prompted to enter your thought, and you can optionally add tags by using the -t or --tags flag.
+After `thg` is installed, you can run it from anywhere in your terminal by typing `thg` followed by a command.
 
-To list all thoughts, use the list command.
+## Usage
 
-To remove a thought, use the remove command followed by the ID of the thought you want to remove.
+`thg` supports four commands: `add`, `ls`, `rm`, and `clear`.
+
+### Add
+
+The `add` command allows you to add a new thought to your list of thoughts. To add a new thought, use the following syntax:
+
+`thg add "My new thought"`
+
+This will add a new thought with the content "My new thought" and the tag "personal" to your list of thoughts.
+
+### List
+
+The `ls` command allows you to list all your thoughts. To list all your thoughts, simply type:
+
+`thg ls`
+
+
+This will display a list of all your thoughts, along with their IDs and tags.
+
+### Remove
+
+The `rm` command allows you to remove a thought by its ID. To remove a thought, use the following syntax:
+
+`thg rm 1`
+
+This will remove the thought with the ID 1 from your list of thoughts.
+
+### Clear
+
+The `clear` command allows you to remove all your thoughts. To clear all your thoughts, simply type:
+
+`thg clear`
+
+
+This will remove all your thoughts from the CSV file.
+
+## Export
+
+To export your thoughts to a CSV file, simply copy the `thoughts.csv` file to a new location on your system. You can then open the CSV file in a spreadsheet program like Microsoft Excel or Google Sheets.
+
+## License
+
+`thg` is released under the MIT License. See [LICENSE](LICENSE) for details.
+
