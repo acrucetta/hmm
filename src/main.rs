@@ -77,10 +77,11 @@ fn list_thoughts() {
         return;
     } 
     let mut reader = csv::Reader::from_path("thoughts.csv").unwrap();
+    println!("ID Timestamp Thought Tags");
     for result in reader.deserialize::<thought::Thought>() {
         let thought = result.unwrap();
         println!(
-            "{} {} {} ({})",
+            "{} {} `{}` {}",
             thought.id, thought.timestamp, thought.message, thought.tags
         );
     }
