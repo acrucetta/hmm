@@ -44,7 +44,7 @@ fn get_current_timestamp() -> String {
     utc.format("%Y-%m-%d").to_string()
 }
 
-fn add_thought(thought: &String) {
+fn add_thought(thought: &String) -> Result<(), Box<dyn std::error::Error>>{
     let output_dir = get_output_dir();
     let file_path = format!("{}/thoughts.csv", output_dir);
     // Prompt the user for tags (optional)
@@ -67,16 +67,21 @@ fn add_thought(thought: &String) {
         .open(file_path)
         .unwrap();
 
-    // If the file is empty, write the header row
     let mut writer = csv::Writer::from_writer(&file);
 
-    writer.serialize(thought::Thought {
-        id,
+    // Write the header row if the file is empty
+    if id == 1 {
+        writer.write_record(&["id", "timestamp", "message", "tags"])?;
+    }
+
+    writer.write_record(&[
+        id.to_string(),
         timestamp,
         message,
         tags,
-    }).unwrap();
-    
+    ])?;
+
+    Ok(())
 }
 
 fn list_thoughts() {
