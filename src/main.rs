@@ -4,6 +4,7 @@ use chrono::prelude::*;
 use clap::{arg, command, Command};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::env;
 
 fn get_next_id() -> u32 {
     let output_dir = get_output_dir();
@@ -88,7 +89,8 @@ fn list_thoughts() {
     if !std::path::Path::new(&file_path).exists() {
         println!("No thoughts found, add one with `hmm add (thought)`");
         return;
-    } 
+    }
+    println!("The output directory is {}", output_dir); 
     let mut reader = csv::Reader::from_path(file_path).unwrap();
     println!("ID Timestamp Thought Tags");
     for result in reader.deserialize::<thought::Thought>() {
@@ -108,6 +110,8 @@ fn remove_thought(id: &String) {
     let file = File::open(file_path).unwrap();
     let reader = BufReader::new(file);
     let writer_file = File::create(temp_file_path).unwrap();
+
+    println!("The output directory is {}", output_dir);
     
     let mut writer = csv::Writer::from_writer(BufWriter::new(writer_file));
 
@@ -124,8 +128,13 @@ fn remove_thought(id: &String) {
 
 fn get_output_dir() -> String {
     // Get the output directory from the environment variable
-    let output_dir = std::env::var("HMM_OUTPUT_DIR").unwrap_or(".".to_string());
-    return output_dir;
+    dotenv::dotenv().ok();
+    match env::var("HMM_OUTPUT_DIR") {
+        Ok(val) => return val,
+        Err(_) => (),
+    }
+    let curr_dir = ".";
+    return curr_dir.to_string();
 }
 
 fn main() { 
