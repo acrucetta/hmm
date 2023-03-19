@@ -57,8 +57,7 @@ fn add_thought(thought: &String) {
     // Generate a new ID and timestamp
     let id = get_next_id();
     let timestamp = get_current_timestamp();
-    let message = thought.trim().to_string();
-
+    let message = thought.to_string();
     // Create a new thought and append it to the CSV file
     let thought = thought::Thought {
         id,
@@ -75,12 +74,9 @@ fn add_thought(thought: &String) {
     if file.metadata().unwrap().len() == 0 {
         writeln!(file, "id,timestamp,message,tags").unwrap();
     }
-    writeln!(
-        file,
-        "{},{},{},{}",
-        thought.id, thought.timestamp, thought.message, thought.tags
-    )
-    .unwrap();
+    // Write the thought to the CSV file
+    let mut writer = csv::Writer::from_writer(file);
+    writer.serialize(thought).unwrap();
 }
 
 fn list_thoughts() {
