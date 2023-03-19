@@ -1,15 +1,22 @@
-mod thought;
+pub mod thought;
 
 use chrono::prelude::*;
 use clap::{arg, command, Command};
+use serde::{Deserialize, Serialize};
+use serde_json;
+use std::env;
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::env;
-use serde_json;
 
-fn get_next_id() -> u32 {
-    let output_dir = get_output_dir();
-    let file_path = format!("{}/thoughts.csv", output_dir);
+#[derive(Debug, Deserialize, Serialize)]
+struct Row {
+    id: u32,
+    timestamp: String,
+    message: String,
+    tags: String,
+}
+
+fn get_next_id(file_path: &String) -> u32 {
     let file = File::open(file_path);
 
     // We want to return 1 if the file doesn't exist,
@@ -44,7 +51,7 @@ fn get_current_timestamp() -> String {
     utc.format("%Y-%m-%d").to_string()
 }
 
-fn add_thought(thought: &String) -> Result<(), Box<dyn std::error::Error>>{
+fn add_thought(thought: &String, file_path: &String) -> Result<(), Box<dyn std::error::Error>>{
     let output_dir = get_output_dir();
     let file_path = format!("{}/thoughts.csv", output_dir);
     // Prompt the user for tags (optional)
@@ -56,7 +63,7 @@ fn add_thought(thought: &String) -> Result<(), Box<dyn std::error::Error>>{
     };
 
     // Generate a new ID and timestamp
-    let id = get_next_id();
+    let id = get_next_id(&file_path);
     let timestamp = get_current_timestamp();
     let message = thought.trim().to_string();
 
@@ -74,22 +81,16 @@ fn add_thought(thought: &String) -> Result<(), Box<dyn std::error::Error>>{
         writer.write_record(&["id", "timestamp", "message", "tags"])?;
     }
 
-    writer.write_record(&[
-        id.to_string(),
-        timestamp,
-        message,
-        tags,
-    ])?;
+    writer.write_record(&[id.to_string(), timestamp, message, tags])?;
 
     Ok(())
+
 }
 
-fn list_thoughts() {
-    let output_dir = get_output_dir();
-    let file_path = format!("{}/thoughts.csv", output_dir);
+fn list_thoughts(file_path: &String) -> Result<(), Box<dyn std::error::Error>> {
     if !std::path::Path::new(&file_path).exists() {
         println!("No thoughts found, add one with `hmm add (thought)`");
-        return;
+        return Ok(());
     }
     let mut reader = csv::Reader::from_path(file_path).unwrap();
     println!("ID Timestamp Thought Tags");
@@ -100,34 +101,29 @@ fn list_thoughts() {
             thought.id, thought.timestamp, thought.message, thought.tags
         );
     }
+    Ok(())
 }
 
-fn remove_thought(id: &String) {
+pub fn remove_thought(id: &String, file_path: &String) -> Result<(), Box<dyn std::error::Error>> {
+    // Open the CSV file and parse it to a Rust data structure
+    let mut rdr = csv::Reader::from_path(&file_path).unwrap();
+    let rows = rdr.deserialize::<Row>();
+    let mut data: Vec<Row> = rows.filter_map(Result::ok).collect();
 
-    let output_dir = get_output_dir();
-    let file_path = format!("{}/thoughts.csv", output_dir);
-    let temp_file_path = format!("{}/temp.csv", output_dir);
-    let file = File::open(file_path).unwrap();
-    let reader = BufReader::new(file);
-    let writer_file = File::create(temp_file_path).unwrap();
-
-    println!("The output directory is {}", output_dir);
+    // Filter out the row with the ID we want to remove
+    data.retain(|row| row.id.to_string() != *id);
     
-    let mut writer = csv::Writer::from_writer(BufWriter::new(writer_file));
-
-    for line in reader.lines() {
-        let line = line.unwrap();
-        let split: Vec<&str> = line.split(",").collect();
-        let current_id = split[0];
-        if current_id != *id {
-            writer.write_record(split).unwrap();
-        }
+    // Write the updated data structure back to the CSV file
+    let mut wtr = csv::Writer::from_path(&file_path).unwrap();
+    for row in &data {
+        wtr.serialize(row).unwrap();
     }
-    std::fs::rename("temp.csv", "thoughts.csv").unwrap();
+
+    Ok(())
 }
 
 fn get_output_dir() -> String {
-    // Get .env from the path of the github repository 
+    // Get .env from the path of the github repository
     // TODO: Change this later.
     const DOTENV_PATH: &str = "/Users/andrescrucettanieto/Library/CloudStorage/OneDrive-WaltzHealth/Documents/Code/hmm/.env";
     dotenv::from_path(DOTENV_PATH).ok();
@@ -139,7 +135,7 @@ fn get_output_dir() -> String {
     return curr_dir.to_string();
 }
 
-fn main() { 
+fn main() {
     let matches = command!()
         .subcommand_required(true)
         .arg_required_else_help(true)
@@ -159,32 +155,47 @@ fn main() {
         .subcommand(Command::new("clear").about("Remove all thoughts"))
         .get_matches();
 
+    let file_path = format!("{}/thoughts.csv", get_output_dir());
+
     match matches.subcommand() {
         Some(("add", sub_matches)) => {
             let thought = sub_matches.get_one::<String>("THOUGHT").unwrap();
-            add_thought(thought);
+            match add_thought(&thought, &file_path) {
+                Ok(_) => println!("Thought added!"),
+                Err(e) => println!("Error adding thought: {}", e),
+            }
         }
-        Some(("ls", _sub_matches)) => list_thoughts(),
+        Some(("ls", _sub_matches)) => {
+            match list_thoughts(&file_path) {
+                Ok(_) => (),
+                Err(e) => println!("Error listing thoughts: {}", e),
+            }
+        }
         Some(("rm", sub_matches)) => {
             let id = sub_matches.get_one::<String>("THOGUHT_ID").unwrap();
-            remove_thought(id);
+            match remove_thought(&id, &file_path) {
+                Ok(_) => println!("Thought removed!"),
+                Err(e) => println!("Error removing thought: {}", e),
+            }
         }
         Some(("clear", _sub_matches)) => {
-            remove_all_thoughts();
+            match remove_all_thoughts(&file_path) {
+                Ok(_) => println!("All thoughts removed!"),
+                Err(e) => println!("Error removing all thoughts: {}", e),
+            }
         }
         _ => println!("No subcommand was used"),
     }
 }
 
-fn remove_all_thoughts() -> () {
-    let output_dir = get_output_dir();
-    let file_path = format!("{}/thoughts.csv", output_dir);
+fn remove_all_thoughts(file_path: &String) -> Result<(), Box<dyn std::error::Error>> {
     // Confirm that the user wants to delete all thoughts
     println!("Are you sure you want to delete all thoughts? (y/n):");
     let mut input = String::new();
     std::io::stdin().read_line(&mut input).unwrap();
     if input.trim() != "y" {
-        return;
+        println!("Thoughts not deleted");
+        return Ok(());
     }
 
     // Deletes all the rows in the CSV file
@@ -196,4 +207,40 @@ fn remove_all_thoughts() -> () {
 
     // Write the header row
     writeln!(file, "id,timestamp,message,tags").unwrap();
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_remove_thought() {
+        // Create a temporary CSV file for testing
+        let file_path = "test_remove_thought.csv";
+        let mut wtr = csv::Writer::from_path(file_path).unwrap();
+        wtr.write_record(&["id", "text"]).unwrap();
+        wtr.write_record(&["1", "First thought"]).unwrap();
+        wtr.write_record(&["2", "Second thought"]).unwrap();
+        wtr.write_record(&["3", "Third thought"]).unwrap();
+        wtr.flush().unwrap();
+
+        // Remove the second thought from the CSV file
+        remove_thought(&"2".to_string());
+
+        // Read the CSV file and check that the second thought was removed
+        let mut rdr = csv::Reader::from_path(file_path).unwrap();
+        let rows = rdr.deserialize::<Row>();
+        let data: Vec<Row> = rows.filter_map(Result::ok).collect();
+        assert_eq!(data.len(), 2);
+        assert_eq!(data[0].id, 1);
+        assert_eq!(data[0].message, "First thought");
+        assert_eq!(data[1].id, 3);
+        assert_eq!(data[1].message, "Third thought");
+
+        // Remove the CSV file
+        std::fs::remove_file(file_path).unwrap();
+
+    }
 }
