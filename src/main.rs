@@ -90,7 +90,6 @@ fn list_thoughts() {
         println!("No thoughts found, add one with `hmm add (thought)`");
         return;
     }
-    println!("The output directory is {}", output_dir); 
     let mut reader = csv::Reader::from_path(file_path).unwrap();
     println!("ID Timestamp Thought Tags");
     for result in reader.deserialize::<thought::Thought>() {
