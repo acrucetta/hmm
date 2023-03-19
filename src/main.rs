@@ -5,6 +5,7 @@ use clap::{arg, command, Command};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::env;
+use serde_json;
 
 fn get_next_id() -> u32 {
     let output_dir = get_output_dir();
@@ -57,26 +58,25 @@ fn add_thought(thought: &String) {
     // Generate a new ID and timestamp
     let id = get_next_id();
     let timestamp = get_current_timestamp();
-    let message = thought.to_string();
-    // Create a new thought and append it to the CSV file
-    let thought = thought::Thought {
-        id,
-        timestamp,
-        message,
-        tags,
-    };
+    let message = thought.trim().to_string();
 
-    let mut file = OpenOptions::new()
+    // Append the thought to the CSV file
+    let file = OpenOptions::new()
         .append(true)
         .create(true)
         .open(file_path)
         .unwrap();
-    if file.metadata().unwrap().len() == 0 {
-        writeln!(file, "id,timestamp,message,tags").unwrap();
-    }
-    // Write the thought to the CSV file
-    let mut writer = csv::Writer::from_writer(file);
-    writer.serialize(thought).unwrap();
+
+    // If the file is empty, write the header row
+    let mut writer = csv::Writer::from_writer(&file);
+
+    writer.serialize(thought::Thought {
+        id,
+        timestamp,
+        message,
+        tags,
+    }).unwrap();
+    
 }
 
 fn list_thoughts() {

@@ -6,3 +6,12 @@ pub struct Thought {
     pub message: String,
     pub tags: String,
 }
+
+impl Thought {
+    pub fn to_csv(&self) -> String {
+        format!(
+            "{},{},{},{}",
+            self.id, self.timestamp, self.message, self.tags
+        )
+    }
+}
