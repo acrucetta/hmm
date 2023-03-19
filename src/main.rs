@@ -126,11 +126,13 @@ fn remove_thought(id: &String) {
 }
 
 fn get_output_dir() -> String {
-    // Get the output directory from the environment variable
-    dotenv::dotenv().ok();
+    // Get .env from the path of the github repository 
+    // TODO: Change this later.
+    const DOTENV_PATH: &str = "/Users/andrescrucettanieto/Library/CloudStorage/OneDrive-WaltzHealth/Documents/Code/hmm/.env";
+    dotenv::from_path(DOTENV_PATH).ok();
     match env::var("HMM_OUTPUT_DIR") {
         Ok(val) => return val,
-        Err(_) => (),
+        Err(_) => println!("HMM_OUTPUT_DIR not set, using current directory"),
     }
     let curr_dir = ".";
     return curr_dir.to_string();
