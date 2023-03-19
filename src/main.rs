@@ -16,33 +16,14 @@ struct Row {
     tags: String,
 }
 
-fn get_next_id(file_path: &String) -> u32 {
-    let file = File::open(file_path);
-
-    // We want to return 1 if the file doesn't exist,
-    // otherwise we want to return the next ID
-    // To get the next ID we search the last line of the file in the ID column
-    // and increment it by 1
-    match file {
-        Ok(f) => {
-            let reader = BufReader::new(f);
-            let mut last_line = String::new();
-            for line in reader.lines() {
-                last_line = line.unwrap();
-            }
-            let split: Vec<&str> = last_line.split(",").collect();
-            if split.len() == 0 {
-                return 1;
-            }
-            // If we're returning the header row, return 1
-            if split[0] == "id" {
-                return 1;
-            }
-            let last_id = split[0].parse::<u32>().unwrap();
-            last_id + 1
+fn get_next_id(rows: &Vec<Row>) -> u32 {
+    let mut id = 1;
+    for row in rows {
+        if row.id >= id {
+            id = row.id + 1;
         }
-        Err(_) => 1,
     }
+    id
 }
 
 fn get_current_timestamp() -> String {
@@ -51,9 +32,8 @@ fn get_current_timestamp() -> String {
     utc.format("%Y-%m-%d").to_string()
 }
 
-fn add_thought(thought: &String, file_path: &String) -> Result<(), Box<dyn std::error::Error>>{
-    let output_dir = get_output_dir();
-    let file_path = format!("{}/thoughts.csv", output_dir);
+fn add_thought(thought: &String, mut rows: Vec<Row>) -> Vec<Row>{
+    
     // Prompt the user for tags (optional)
     let tags = {
         println!("Enter tags (optional):");
@@ -63,63 +43,37 @@ fn add_thought(thought: &String, file_path: &String) -> Result<(), Box<dyn std::
     };
 
     // Generate a new ID and timestamp
-    let id = get_next_id(&file_path);
+    let id = get_next_id(&rows);
     let timestamp = get_current_timestamp();
     let message = thought.trim().to_string();
 
-    // Append the thought to the CSV file
-    let file = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(file_path)
-        .unwrap();
+    rows.push(Row {
+        id,
+        timestamp,
+        message,
+        tags,
+    });
 
-    let mut writer = csv::Writer::from_writer(&file);
-
-    // Write the header row if the file is empty
-    if id == 1 {
-        writer.write_record(&["id", "timestamp", "message", "tags"])?;
-    }
-
-    writer.write_record(&[id.to_string(), timestamp, message, tags])?;
-
-    Ok(())
-
+    rows
 }
 
-fn list_thoughts(file_path: &String) -> Result<(), Box<dyn std::error::Error>> {
-    if !std::path::Path::new(&file_path).exists() {
-        println!("No thoughts found, add one with `hmm add (thought)`");
-        return Ok(());
-    }
-    let mut reader = csv::Reader::from_path(file_path).unwrap();
-    println!("ID Timestamp Thought Tags");
-    for result in reader.deserialize::<thought::Thought>() {
-        let thought = result.unwrap();
-        println!(
-            "{} {} `{}` {}",
-            thought.id, thought.timestamp, thought.message, thought.tags
-        );
+fn list_thoughts(rows: &Vec<Row>) -> Result<(), Box<dyn std::error::Error>> {
+    for row in rows {
+        println!("{}: {}, {}, {}", row.id, row.timestamp, row.message, row.tags);
     }
     Ok(())
 }
 
-pub fn remove_thought(id: &String, file_path: &String) -> Result<(), Box<dyn std::error::Error>> {
-    // Open the CSV file and parse it to a Rust data structure
-    let mut rdr = csv::Reader::from_path(&file_path).unwrap();
-    let rows = rdr.deserialize::<Row>();
-    let mut data: Vec<Row> = rows.filter_map(Result::ok).collect();
-
-    // Filter out the row with the ID we want to remove
-    data.retain(|row| row.id.to_string() != *id);
-    
-    // Write the updated data structure back to the CSV file
-    let mut wtr = csv::Writer::from_path(&file_path).unwrap();
-    for row in &data {
-        wtr.serialize(row).unwrap();
+fn remove_thought(id: &String, mut rows: Vec<Row>) -> Vec<Row> {
+    let mut index = 0;
+    for row in &rows {
+        if row.id.to_string() == *id {
+            rows.remove(index);
+            break;
+        }
+        index += 1;
     }
-
-    Ok(())
+    rows
 }
 
 fn get_output_dir() -> String {
@@ -157,90 +111,38 @@ fn main() {
 
     let file_path = format!("{}/thoughts.csv", get_output_dir());
 
+    // Check if the file exists, if not create a new file with the
+    // header rows of id, timestamp, message, tags
+    
+
+    // Read the file and make it a list of Vec<Rows>
+
+    
     match matches.subcommand() {
         Some(("add", sub_matches)) => {
             let thought = sub_matches.get_one::<String>("THOUGHT").unwrap();
-            match add_thought(&thought, &file_path) {
-                Ok(_) => println!("Thought added!"),
-                Err(e) => println!("Error adding thought: {}", e),
-            }
+            rows = add_thought(&thought, rows);
         }
         Some(("ls", _sub_matches)) => {
-            match list_thoughts(&file_path) {
-                Ok(_) => (),
+            match list_thoughts(&rows) {
+                Ok(_) => println!("Thoughts listed!"),
                 Err(e) => println!("Error listing thoughts: {}", e),
             }
         }
         Some(("rm", sub_matches)) => {
             let id = sub_matches.get_one::<String>("THOGUHT_ID").unwrap();
-            match remove_thought(&id, &file_path) {
-                Ok(_) => println!("Thought removed!"),
-                Err(e) => println!("Error removing thought: {}", e),
-            }
+            rows = remove_thought(&id, rows);
         }
         Some(("clear", _sub_matches)) => {
-            match remove_all_thoughts(&file_path) {
-                Ok(_) => println!("All thoughts removed!"),
-                Err(e) => println!("Error removing all thoughts: {}", e),
-            }
+            rows = remove_all_thoughts(rows);
         }
         _ => println!("No subcommand was used"),
     }
+
+    // Overwrite the existing file with the updated rows
 }
 
-fn remove_all_thoughts(file_path: &String) -> Result<(), Box<dyn std::error::Error>> {
-    // Confirm that the user wants to delete all thoughts
-    println!("Are you sure you want to delete all thoughts? (y/n):");
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
-    if input.trim() != "y" {
-        println!("Thoughts not deleted");
-        return Ok(());
-    }
-
-    // Deletes all the rows in the CSV file
-    let mut file = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(file_path)
-        .unwrap();
-
-    // Write the header row
-    writeln!(file, "id,timestamp,message,tags").unwrap();
-
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_remove_thought() {
-        // Create a temporary CSV file for testing
-        let file_path = "test_remove_thought.csv";
-        let mut wtr = csv::Writer::from_path(file_path).unwrap();
-        wtr.write_record(&["id", "text"]).unwrap();
-        wtr.write_record(&["1", "First thought"]).unwrap();
-        wtr.write_record(&["2", "Second thought"]).unwrap();
-        wtr.write_record(&["3", "Third thought"]).unwrap();
-        wtr.flush().unwrap();
-
-        // Remove the second thought from the CSV file
-        remove_thought(&"2".to_string());
-
-        // Read the CSV file and check that the second thought was removed
-        let mut rdr = csv::Reader::from_path(file_path).unwrap();
-        let rows = rdr.deserialize::<Row>();
-        let data: Vec<Row> = rows.filter_map(Result::ok).collect();
-        assert_eq!(data.len(), 2);
-        assert_eq!(data[0].id, 1);
-        assert_eq!(data[0].message, "First thought");
-        assert_eq!(data[1].id, 3);
-        assert_eq!(data[1].message, "Third thought");
-
-        // Remove the CSV file
-        std::fs::remove_file(file_path).unwrap();
-
-    }
+fn remove_all_thoughts(mut rows: Vec<Row>) -> Vec<Row> {
+    rows.clear();
+    rows
 }
