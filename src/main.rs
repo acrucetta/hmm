@@ -6,7 +6,9 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 
 fn get_next_id() -> u32 {
-    let file = File::open("thoughts.csv");
+    let output_dir = get_output_dir();
+    let file_path = format!("{}/thoughts.csv", output_dir);
+    let file = File::open(file_path);
 
     // We want to return 1 if the file doesn't exist,
     // otherwise we want to return the next ID
@@ -41,6 +43,8 @@ fn get_current_timestamp() -> String {
 }
 
 fn add_thought(thought: &String) {
+    let output_dir = get_output_dir();
+    let file_path = format!("{}/thoughts.csv", output_dir);
     // Prompt the user for tags (optional)
     let tags = {
         println!("Enter tags (optional):");
@@ -65,7 +69,7 @@ fn add_thought(thought: &String) {
     let mut file = OpenOptions::new()
         .append(true)
         .create(true)
-        .open("thoughts.csv")
+        .open(file_path)
         .unwrap();
     if file.metadata().unwrap().len() == 0 {
         writeln!(file, "id,timestamp,message,tags").unwrap();
@@ -79,11 +83,13 @@ fn add_thought(thought: &String) {
 }
 
 fn list_thoughts() {
-    if !std::path::Path::new("thoughts.csv").exists() {
+    let output_dir = get_output_dir();
+    let file_path = format!("{}/thoughts.csv", output_dir);
+    if !std::path::Path::new(&file_path).exists() {
         println!("No thoughts found, add one with `hmm add (thought)`");
         return;
     } 
-    let mut reader = csv::Reader::from_path("thoughts.csv").unwrap();
+    let mut reader = csv::Reader::from_path(file_path).unwrap();
     println!("ID Timestamp Thought Tags");
     for result in reader.deserialize::<thought::Thought>() {
         let thought = result.unwrap();
@@ -95,9 +101,14 @@ fn list_thoughts() {
 }
 
 fn remove_thought(id: &String) {
-    let file = File::open("thoughts.csv").unwrap();
+
+    let output_dir = get_output_dir();
+    let file_path = format!("{}/thoughts.csv", output_dir);
+    let temp_file_path = format!("{}/temp.csv", output_dir);
+    let file = File::open(file_path).unwrap();
     let reader = BufReader::new(file);
-    let writer_file = File::create("temp.csv").unwrap();
+    let writer_file = File::create(temp_file_path).unwrap();
+    
     let mut writer = csv::Writer::from_writer(BufWriter::new(writer_file));
 
     for line in reader.lines() {
@@ -111,7 +122,13 @@ fn remove_thought(id: &String) {
     std::fs::rename("temp.csv", "thoughts.csv").unwrap();
 }
 
-fn main() {
+fn get_output_dir() -> String {
+    // Get the output directory from the environment variable
+    let output_dir = std::env::var("HMM_OUTPUT_DIR").unwrap_or(".".to_string());
+    return output_dir;
+}
+
+fn main() { 
     let matches = command!()
         .subcommand_required(true)
         .arg_required_else_help(true)
@@ -149,6 +166,8 @@ fn main() {
 }
 
 fn remove_all_thoughts() -> () {
+    let output_dir = get_output_dir();
+    let file_path = format!("{}/thoughts.csv", output_dir);
     // Confirm that the user wants to delete all thoughts
     println!("Are you sure you want to delete all thoughts? (y/n):");
     let mut input = String::new();
@@ -161,7 +180,7 @@ fn remove_all_thoughts() -> () {
     let mut file = OpenOptions::new()
         .write(true)
         .truncate(true)
-        .open("thoughts.csv")
+        .open(file_path)
         .unwrap();
 
     // Write the header row
