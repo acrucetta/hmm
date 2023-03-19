@@ -10,7 +10,7 @@ To install `hmm`, you need to have Rust and Cargo installed on your system. If y
 
 Once you have Rust and Cargo installed, you can install `hmm` by running the following command:
 
-`cargo install --git https://github.com/acrucetta/thought-capturer.git`
+`cargo install --git https://github.com/acrucetta/hmm.git`
 
 After `hmm` is installed, you can run it from anywhere in your terminal by typing `hmm` followed by a command.
 
