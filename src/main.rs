@@ -21,9 +21,9 @@ impl Eq for Row {}
 impl PartialEq for Row {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
-        && self.timestamp == other.timestamp
-        && self.message == other.message
-        && self.tags == other.tags
+            && self.timestamp == other.timestamp
+            && self.message == other.message
+            && self.tags == other.tags
     }
 }
 
@@ -43,8 +43,7 @@ fn get_current_timestamp() -> String {
     utc.format("%Y-%m-%d").to_string()
 }
 
-fn add_thought(thought: &String, mut rows: Vec<Row>) -> Vec<Row>{
-    
+fn add_thought(thought: &String, mut rows: Vec<Row>) -> Vec<Row> {
     // Prompt the user for tags (optional)
     let tags = {
         println!("Enter tags (optional):");
@@ -70,7 +69,10 @@ fn add_thought(thought: &String, mut rows: Vec<Row>) -> Vec<Row>{
 
 fn list_thoughts(rows: &Vec<Row>) -> Result<(), Box<dyn std::error::Error>> {
     for row in rows {
-        println!("{}: {}, {}, {}", row.id, row.timestamp, row.message, row.tags);
+        println!(
+            "{}: {}, {}, {}",
+            row.id, row.timestamp, row.message, row.tags
+        );
     }
     Ok(())
 }
@@ -122,19 +124,21 @@ fn main() {
 
     let file_path = format!("{}/thoughts.csv", get_output_dir());
 
-    let mut rows = load_file_into_rows(&file_path);
-    
+    // Load the file into rows
+    let mut rows = match load_file_into_rows(&file_path) {
+        Ok(rows) => rows,
+        Err(_) => Vec::new(),
+    };
+
     match matches.subcommand() {
         Some(("add", sub_matches)) => {
             let thought = sub_matches.get_one::<String>("THOUGHT").unwrap();
             rows = add_thought(&thought, rows);
         }
-        Some(("ls", _sub_matches)) => {
-            match list_thoughts(&rows) {
-                Ok(_) => println!("Thoughts listed!"),
-                Err(e) => println!("Error listing thoughts: {}", e),
-            }
-        }
+        Some(("ls", _sub_matches)) => match list_thoughts(&rows) {
+            Ok(_) => println!("Thoughts listed!"),
+            Err(e) => println!("Error listing thoughts: {}", e),
+        },
         Some(("rm", sub_matches)) => {
             let id = sub_matches.get_one::<String>("THOGUHT_ID").unwrap();
             rows = remove_thought(&id, rows);
@@ -145,48 +149,59 @@ fn main() {
         _ => println!("No subcommand was used"),
     }
 
-    // Overwrite the existing file with the updated rows
-    let file = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(&file_path)
-        .unwrap();
-    let mut writer = BufWriter::new(file);
-
-    // Serialize the rows into JSON and write them to the file
-    for row in rows {
-        let row = serde_json::to_string(&row).unwrap();
-        writer.write_all(b"id,timestamp,message,tags").unwrap();
-        writer.write_all(row.as_bytes()).unwrap();
+    // Save the rows to the file
+    match save_rows_to_file(&file_path, &rows) {
+        Ok(_) => println!("Thoughts saved!"),
+        Err(e) => println!("Error saving thoughts: {}", e),
     }
 }
 
-fn load_file_into_rows(file_path: &String) -> Vec<Row> {
-    // Check if the file exists, if not create a new file with the
-    // header rows of id, timestamp, message, tags
+fn load_file_into_rows(file_path: &str) -> Result<Vec<Row>, csv::Error> {
     let mut rows: Vec<Row> = Vec::new();
-    if !std::path::Path::new(file_path).exists() {
-        let mut file = File::create(file_path).unwrap();
-        // Write the header rows
-        file.write_all(b"id,timestamp,message,tags").unwrap();
-    // If the file exists, read the contents and deserialize them into a vector of Rows
-    } else { 
-        let file = File::open(file_path).unwrap();
-        let reader = BufReader::new(file);
-        for line in reader.lines() {
-            match line {
-                Ok(line) => {
-                    if line == "id,timestamp,message,tags" {
-                        continue;
-                    }
-                    let row: Row = serde_json::from_str(&line).unwrap();
-                    rows.push(row);
-                },
-                Err(e) => println!("Error reading line: {}", e),
-            }
+
+    let mut reader = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .from_path(file_path)?;
+
+    for result in reader.records() {
+        let record: csv::StringRecord = result?;
+        if record == csv::StringRecord::from(vec!["id", "timestamp", "message", "tags"]) {
+            continue;
         }
+        let row: Row = Row {
+            id: record.get(0).unwrap().parse().unwrap(),
+            timestamp: record.get(1).unwrap().parse().unwrap(),
+            message: record.get(2).unwrap().to_string(),
+            tags: match record.get(3) {
+                Some(tags) => tags.to_string(),
+                None => String::new(),
+            },
+        };
+        rows.push(row);
     }
-    rows
+
+    Ok(rows)
+}
+
+fn save_rows_to_file(file_path: &str, rows: &Vec<Row>) -> Result<(), csv::Error> {
+    let mut writer = csv::WriterBuilder::new()
+        .has_headers(false)
+        .from_path(file_path)?;
+
+    writer.write_record(&["id", "timestamp", "message", "tags"])?;
+
+    for row in rows {
+        writer.write_record(&[
+            row.id.to_string(),
+            row.timestamp.to_string(),
+            row.message.to_string(),
+            row.tags.to_string(),
+        ])?;
+    }
+
+    writer.flush()?;
+
+    Ok(())
 }
 
 fn remove_all_thoughts(mut rows: Vec<Row>) -> Vec<Row> {
@@ -204,13 +219,14 @@ mod tests {
         // Test creating a new file
         let inexistent_file_path = String::from("tests/test_ingest_inexistent_file.csv");
         let result = load_file_into_rows(&inexistent_file_path);
+
         // Assert the two vectors are equal
         assert_eq!(result, rows);
-        
+
         // Test loading an existing file with some rows
         let file_path_with_data = String::from("tests/test_ingest_file_with_data.csv");
         let result = load_file_into_rows(&file_path_with_data);
-        rows.push( Row {
+        rows.push(Row {
             id: 1,
             timestamp: String::from("2018-01-01 00:00:00"),
             message: String::from("hello world"),
@@ -218,11 +234,42 @@ mod tests {
         });
         assert_eq!(result, rows);
         rows.clear();
-        
+
         // Test loading an existing file with no rows
         let empty_file_path = String::from("tests/test_ingest_empty_file.csv");
         let result = load_file_into_rows(&empty_file_path);
         let rows: Vec<Row> = Vec::new();
         assert_eq!(result, rows);
+    }
+
+    #[test]
+    fn test_save_rows_to_file() {
+        let file_path = "test.csv";
+        let rows = vec![
+            Row {
+                id: 1,
+                timestamp: "1627386000".to_string(),
+                message: "Hello, world!".to_string(),
+                tags: "test".to_string(),
+            },
+            Row {
+                id: 2,
+                timestamp: "1627386600".to_string(),
+                message: "How are you?".to_string(),
+                tags: "test".to_string(),
+            },
+        ];
+
+        // Write the rows to a CSV file
+        save_rows_to_file(file_path, &rows).unwrap();
+
+        // Read the rows from the CSV file
+        let loaded_rows = load_file_into_rows(file_path).unwrap();
+
+        // Check that the loaded rows are equal to the original rows
+        assert_eq!(loaded_rows, rows);
+
+        // Clean up the test file
+        std::fs::remove_file(file_path).unwrap();
     }
 }
