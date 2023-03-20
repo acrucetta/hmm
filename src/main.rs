@@ -3,10 +3,8 @@ pub mod thought;
 use chrono::prelude::*;
 use clap::{arg, command, Command};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::env;
-use std::fs::{File, OpenOptions};
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use log::{info, warn, error};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Row {
@@ -67,14 +65,17 @@ fn add_thought(thought: &String, mut rows: Vec<Row>) -> Vec<Row> {
     rows
 }
 
-fn list_thoughts(rows: &Vec<Row>) -> Result<(), Box<dyn std::error::Error>> {
+fn list_thoughts(rows: &Vec<Row>) {
+    if rows.is_empty() {
+        warn!("No thoughts found! Add one with 'hmm add <thought>'");
+    }
+    print!("ID, Timestamp, Thought, Tags\n");
     for row in rows {
         println!(
             "{}: {}, {}, {}",
             row.id, row.timestamp, row.message, row.tags
         );
     }
-    Ok(())
 }
 
 fn remove_thought(id: &String, mut rows: Vec<Row>) -> Vec<Row> {
@@ -96,7 +97,7 @@ fn get_output_dir() -> String {
     dotenv::from_path(DOTENV_PATH).ok();
     match env::var("HMM_OUTPUT_DIR") {
         Ok(val) => return val,
-        Err(_) => println!("HMM_OUTPUT_DIR not set, using current directory"),
+        Err(_) => warn!("HMM_OUTPUT_DIR not set, using current directory"),
     }
     let curr_dir = ".";
     return curr_dir.to_string();
@@ -135,10 +136,9 @@ fn main() {
             let thought = sub_matches.get_one::<String>("THOUGHT").unwrap();
             rows = add_thought(&thought, rows);
         }
-        Some(("ls", _sub_matches)) => match list_thoughts(&rows) {
-            Ok(_) => println!("Thoughts listed!"),
-            Err(e) => println!("Error listing thoughts: {}", e),
-        },
+        Some(("ls", _sub_matches)) => {
+            list_thoughts(&rows);
+        }
         Some(("rm", sub_matches)) => {
             let id = sub_matches.get_one::<String>("THOGUHT_ID").unwrap();
             rows = remove_thought(&id, rows);
@@ -146,13 +146,13 @@ fn main() {
         Some(("clear", _sub_matches)) => {
             rows = remove_all_thoughts(rows);
         }
-        _ => println!("No subcommand was used"),
+        _ => warn!("No subcommand was used"),
     }
 
     // Save the rows to the file
     match save_rows_to_file(&file_path, &rows) {
-        Ok(_) => println!("Thoughts saved!"),
-        Err(e) => println!("Error saving thoughts: {}", e),
+        Ok(_) => info!("Thoughts saved!"),
+        Err(e) => error!("Error saving thoughts: {}", e),
     }
 }
 

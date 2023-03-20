@@ -201,6 +201,7 @@ dependencies = [
  "clap",
  "csv",
  "dotenv",
+ "log",
  "serde",
  "serde_json",
 ]
