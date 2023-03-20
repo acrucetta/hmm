@@ -159,9 +159,14 @@ fn main() {
 fn load_file_into_rows(file_path: &str) -> Result<Vec<Row>, csv::Error> {
     let mut rows: Vec<Row> = Vec::new();
 
-    let mut reader = csv::ReaderBuilder::new()
+    let reader = csv::ReaderBuilder::new()
         .has_headers(false)
-        .from_path(file_path)?;
+        .from_path(file_path);
+
+    let mut reader = match reader {
+        Ok(reader) => reader,
+        Err(_) => return Ok(rows),
+    };
 
     for result in reader.records() {
         let record: csv::StringRecord = result?;
@@ -219,9 +224,11 @@ mod tests {
         // Test creating a new file
         let inexistent_file_path = String::from("tests/test_ingest_inexistent_file.csv");
         let result = load_file_into_rows(&inexistent_file_path);
-
         // Assert the two vectors are equal
-        assert_eq!(result, rows);
+        match result {
+            Ok(result_rows) => assert_eq!(result_rows, rows),
+            Err(_) => assert!(false),
+        }
 
         // Test loading an existing file with some rows
         let file_path_with_data = String::from("tests/test_ingest_file_with_data.csv");
@@ -232,19 +239,26 @@ mod tests {
             message: String::from("hello world"),
             tags: String::from("tag1"),
         });
-        assert_eq!(result, rows);
+        match result {
+            Ok(result_rows) => assert_eq!(result_rows, rows),
+            Err(_) => assert!(false),
+        }
         rows.clear();
 
         // Test loading an existing file with no rows
         let empty_file_path = String::from("tests/test_ingest_empty_file.csv");
         let result = load_file_into_rows(&empty_file_path);
-        let rows: Vec<Row> = Vec::new();
-        assert_eq!(result, rows);
+        
+        // Assert the result is an empty vector
+        match result {
+            Ok(result_rows) => assert_eq!(result_rows, rows),
+            Err(_) => assert!(false),
+        }
     }
 
     #[test]
     fn test_save_rows_to_file() {
-        let file_path = "test.csv";
+        let file_path = "tests/save_test.csv";
         let rows = vec![
             Row {
                 id: 1,
