@@ -32,6 +32,12 @@ The `ls` command allows you to list all your thoughts. To list all your thoughts
 
 `hmm ls`
 
+```
+ID, Timestamp, Thought, Tags
+2: 2023-03-20, With Next.js, three types of rendering methods are available: Server-Side Rendering, Static Site Generation, and Client-Side Rendering.,
+3: 2023-03-20, Clean knives before putting them back, cooking
+```
+
 
 This will display a list of all your thoughts, along with their IDs and tags.
 
