@@ -3,8 +3,7 @@ pub mod thought;
 use chrono::prelude::*;
 use clap::{arg, command, Command};
 use serde::{Deserialize, Serialize};
-use std::env;
-use log::{info, warn, error};
+use std::{env, fs::File, io::Write};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Row {
@@ -67,7 +66,7 @@ fn add_thought(thought: &String, mut rows: Vec<Row>) -> Vec<Row> {
 
 fn list_thoughts(rows: &Vec<Row>) {
     if rows.is_empty() {
-        warn!("No thoughts found! Add one with 'hmm add <thought>'");
+        println!("No thoughts found! Add one with 'hmm add <thought>'");
     }
     print!("ID, Timestamp, Thought, Tags\n");
     for row in rows {
@@ -91,13 +90,11 @@ fn remove_thought(id: &String, mut rows: Vec<Row>) -> Vec<Row> {
 }
 
 fn get_output_dir() -> String {
-    // Get .env from the path of the github repository
-    // TODO: Change this later.
-    const DOTENV_PATH: &str = "/Users/andrescrucettanieto/Library/CloudStorage/OneDrive-WaltzHealth/Documents/Code/hmm/.env";
+    const DOTENV_PATH: &str = "./.env";
     dotenv::from_path(DOTENV_PATH).ok();
     match env::var("HMM_OUTPUT_DIR") {
         Ok(val) => return val,
-        Err(_) => warn!("HMM_OUTPUT_DIR not set, using current directory"),
+        Err(_) => eprintln!("Output directory not set, using current directory"),
     }
     let curr_dir = ".";
     return curr_dir.to_string();
@@ -121,39 +118,79 @@ fn main() {
                 .arg_required_else_help(true),
         )
         .subcommand(Command::new("clear").about("Remove all thoughts"))
+        .subcommand(
+            Command::new("output_dir")
+                .about("Set output directory")
+                .arg(arg!([PATH]))
+                .arg_required_else_help(true),
+        )
         .get_matches();
-
-    let file_path = format!("{}/thoughts.csv", get_output_dir());
-
-    // Load the file into rows
-    let mut rows = match load_file_into_rows(&file_path) {
-        Ok(rows) => rows,
-        Err(_) => Vec::new(),
-    };
 
     match matches.subcommand() {
         Some(("add", sub_matches)) => {
+            let file_path = format!("{}/thoughts.csv", get_output_dir());
+            let mut rows = match load_file_into_rows(&file_path) {
+                Ok(rows) => rows,
+                Err(_) => Vec::new(),
+            };
             let thought = sub_matches.get_one::<String>("THOUGHT").unwrap();
             rows = add_thought(&thought, rows);
+            match save_rows_to_file(&file_path, &rows) {
+                Ok(_) => println!("Thoughts saved!"),
+                Err(e) => eprintln!("Error saving thoughts: {}", e),
+            }
         }
         Some(("ls", _sub_matches)) => {
+            let file_path = format!("{}/thoughts.csv", get_output_dir());
+            let rows = match load_file_into_rows(&file_path) {
+                Ok(rows) => rows,
+                Err(_) => Vec::new(),
+            };
             list_thoughts(&rows);
         }
         Some(("rm", sub_matches)) => {
+            let file_path = format!("{}/thoughts.csv", get_output_dir());
+            let mut rows = match load_file_into_rows(&file_path) {
+                Ok(rows) => rows,
+                Err(_) => Vec::new(),
+            };
             let id = sub_matches.get_one::<String>("THOGUHT_ID").unwrap();
             rows = remove_thought(&id, rows);
+            match save_rows_to_file(&file_path, &rows) {
+                Ok(_) => println!("Thoughts saved!"),
+                Err(e) => eprintln!("Error saving thoughts: {}", e),
+            }
         }
         Some(("clear", _sub_matches)) => {
+            let file_path = format!("{}/thoughts.csv", get_output_dir());
+            let mut rows = match load_file_into_rows(&file_path) {
+                Ok(rows) => rows,
+                Err(_) => Vec::new(),
+            };
             rows = remove_all_thoughts(rows);
+            match save_rows_to_file(&file_path, &rows) {
+                Ok(_) => println!("Thoughts saved!"),
+                Err(e) => eprintln!("Error saving thoughts: {}", e),
+            }
         }
-        _ => warn!("No subcommand was used"),
+        Some(("output_dir", sub_matches)) => {
+            let env_path = sub_matches.get_one::<String>("PATH").unwrap();
+            match set_output_directory(&env_path) {
+                Ok(_) => {
+                    println!("Output directory successfully set to {}", env_path)
+                }
+                Err(e) => eprintln!("Error setting output directory {}", e),
+            }
+        }
+        _ => println!("No subcommand was used"),
     }
+}
 
-    // Save the rows to the file
-    match save_rows_to_file(&file_path, &rows) {
-        Ok(_) => info!("Thoughts saved!"),
-        Err(e) => error!("Error saving thoughts: {}", e),
-    }
+fn set_output_directory(file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let mut file = File::create(".env")?;
+    let content = [r#"HMM_OUTPUT_DIR = ""#, file_path, r#"""#].concat();
+    file.write_all(content.as_bytes())?;
+    Ok(())
 }
 
 fn load_file_into_rows(file_path: &str) -> Result<Vec<Row>, csv::Error> {
@@ -248,7 +285,7 @@ mod tests {
         // Test loading an existing file with no rows
         let empty_file_path = String::from("tests/test_ingest_empty_file.csv");
         let result = load_file_into_rows(&empty_file_path);
-        
+
         // Assert the result is an empty vector
         match result {
             Ok(result_rows) => assert_eq!(result_rows, rows),
