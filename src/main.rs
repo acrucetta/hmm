@@ -1,10 +1,10 @@
 pub mod thought;
 
 use chrono::prelude::*;
-use clap::{arg, command, Command};
+use clap::{arg, command, Arg, Command};
+use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::env;
-use log::{info, warn, error};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Row {
@@ -65,12 +65,20 @@ fn add_thought(thought: &String, mut rows: Vec<Row>) -> Vec<Row> {
     rows
 }
 
-fn list_thoughts(rows: &Vec<Row>) {
+fn list_thoughts(rows: &Vec<Row>, tag_filter: Option<&String>) {
     if rows.is_empty() {
         warn!("No thoughts found! Add one with 'hmm add <thought>'");
     }
+    let filtered_rows = match tag_filter {
+        Some(tag) => rows
+            .iter()
+            .filter(|row| row.tags.contains(tag))
+            .collect::<Vec<&Row>>(),
+        None => rows.iter().collect::<Vec<&Row>>(),
+    };
+
     print!("ID, Timestamp, Thought, Tags\n");
-    for row in rows {
+    for row in filtered_rows {
         println!(
             "{}: {}, {}, {}",
             row.id, row.timestamp, row.message, row.tags
@@ -113,7 +121,12 @@ fn main() {
                 .arg(arg!([THOUGHT]))
                 .arg_required_else_help(true),
         )
-        .subcommand(Command::new("ls").about("List all thoughts"))
+        .subcommand(
+            Command::new("ls")
+                .about("List all thoughts")
+                .arg(arg!([TAG]))
+                .arg_required_else_help(false),
+        )
         .subcommand(
             Command::new("rm")
                 .about("Remove a thought")
@@ -136,8 +149,9 @@ fn main() {
             let thought = sub_matches.get_one::<String>("THOUGHT").unwrap();
             rows = add_thought(&thought, rows);
         }
-        Some(("ls", _sub_matches)) => {
-            list_thoughts(&rows);
+        Some(("ls", sub_matches)) => {
+            let tag = sub_matches.get_one::<String>("TAG").unwrap();
+            list_thoughts(&rows, Some(tag));
         }
         Some(("rm", sub_matches)) => {
             let id = sub_matches.get_one::<String>("THOGUHT_ID").unwrap();
@@ -248,7 +262,7 @@ mod tests {
         // Test loading an existing file with no rows
         let empty_file_path = String::from("tests/test_ingest_empty_file.csv");
         let result = load_file_into_rows(&empty_file_path);
-        
+
         // Assert the result is an empty vector
         match result {
             Ok(result_rows) => assert_eq!(result_rows, rows),
@@ -285,5 +299,43 @@ mod tests {
 
         // Clean up the test file
         std::fs::remove_file(file_path).unwrap();
+    }
+
+    #[test]
+    fn test_list_thoughts() {
+        let rows = vec![
+            Row {
+                id: 1,
+                timestamp: "2022-01-01".to_string(),
+                message: "Test thought 1".to_string(),
+                tags: "test1".to_string(),
+            },
+            Row {
+                id: 2,
+                timestamp: "2022-01-02".to_string(),
+                message: "Test thought 2".to_string(),
+                tags: "test2".to_string(),
+            },
+            Row {
+                id: 3,
+                timestamp: "2022-01-03".to_string(),
+                message: "Test thought 3".to_string(),
+                tags: "test1".to_string(),
+            },
+        ];
+
+        // Test listing all thoughts
+        let mut output = String::new();
+        let expected_output = "ID, Timestamp, Thought, Tags\n\
+                           1: 2022-01-01, Test thought 1, test1\n\
+                           2: 2022-01-02, Test thought 2, test2\n\
+                           3: 2022-01-03, Test thought 3, test1\n";
+        list_thoughts(&rows, None);
+
+        // Test listing thoughts with a specific tag
+        let expected_output = "ID, Timestamp, Thought, Tags\n\
+                           1: 2022-01-01, Test thought 1, test1\n\
+                           3: 2022-01-03, Test thought 3, test1\n";
+        list_thoughts(&rows, Some(&"test1".to_string()));
     }
 }
