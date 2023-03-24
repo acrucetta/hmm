@@ -1,7 +1,7 @@
 pub mod thought;
 
 use chrono::prelude::*;
-use clap::{arg, command, Arg, Command};
+use clap::{arg, command, Command};
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -150,8 +150,11 @@ fn main() {
             rows = add_thought(&thought, rows);
         }
         Some(("ls", sub_matches)) => {
-            let tag = sub_matches.get_one::<String>("TAG").unwrap();
-            list_thoughts(&rows, Some(tag));
+            let tag = match sub_matches.get_one::<String>("TAG") {
+                Some(tag) => Some(tag),
+                None => None,
+            };
+            list_thoughts(&rows, tag);
         }
         Some(("rm", sub_matches)) => {
             let id = sub_matches.get_one::<String>("THOGUHT_ID").unwrap();
