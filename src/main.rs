@@ -80,7 +80,7 @@ fn list_thoughts(rows: &Vec<Row>, tag_filter: Option<&String>) {
     print!("ID, Timestamp, Thought, Tags\n");
     for row in filtered_rows {
         println!(
-            "{}: {}, {}, {}",
+            "{}: {}, {}, {}\n",
             row.id, row.timestamp, row.message, row.tags
         );
     }
