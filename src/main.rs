@@ -76,13 +76,31 @@ fn list_thoughts(rows: &Vec<Row>, tag_filter: Option<&String>) {
             .collect::<Vec<&Row>>(),
         None => rows.iter().collect::<Vec<&Row>>(),
     };
-
-    print!("ID, Timestamp, Thought, Tags\n");
     for row in filtered_rows {
         println!(
-            "\n#{}, {}, {}\n------------------------@_'-'\n{}",
-            row.id, row.timestamp, row.tags, row.message
+            "\x1b[36m\n#{}, {}, {}\x1b[0m\n{}\n{}",
+            row.id,
+            row.timestamp,
+            row.tags,
+            color_string("------------------------@_'-'", "blue"),
+            color_string(row.message.as_str(),"cyan")
         );
+    }
+}
+
+/// .
+fn color_string(string: &str, color: &str) -> String {
+    // We will color the string based ob the color
+    // the user provides; we will support:
+    match color {
+        "red" => format!("\x1b[31m{}\x1b[0m", string),
+        "green" => format!("\x1b[32m{}\x1b[0m", string),
+        "yellow" => format!("\x1b[33m{}\x1b[0m", string),
+        "blue" => format!("\x1b[34m{}\x1b[0m", string),
+        "magenta" => format!("\x1b[35m{}\x1b[0m", string),
+        "cyan" => format!("\x1b[36m{}\x1b[0m", string),
+        "white" => format!("\x1b[37m{}\x1b[0m", string),
+        _ => string.to_string(),
     }
 }
 
