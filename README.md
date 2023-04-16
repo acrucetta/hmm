@@ -14,7 +14,7 @@ Once you have Rust and Cargo installed, you can install `hmm` by running the fol
 
 Set the HMM_OUTPUT_DIR environment variable to the desired output directory for the task list file. You can use the .env.example file in the project directory with the following content:
 
-DOER_OUTPUT_DIR=/path/to/task/file
+`DOER_OUTPUT_DIR=/path/to/task/file`
 
 After `hmm` is installed, you can run it from anywhere in your terminal by typing `hmm` followed by a command.
 
