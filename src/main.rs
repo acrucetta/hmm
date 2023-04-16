@@ -2,6 +2,7 @@ pub mod thought;
 
 use chrono::prelude::*;
 use clap::{arg, command, Command};
+use dotenv::dotenv;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -83,7 +84,7 @@ fn list_thoughts(rows: &Vec<Row>, tag_filter: Option<&String>) {
             row.timestamp,
             row.tags,
             color_string("------------------------@_'-'", "blue"),
-            color_string(row.message.as_str(),"cyan")
+            color_string(row.message.as_str(), "cyan")
         );
     }
 }
@@ -118,9 +119,7 @@ fn remove_thought(id: &String, mut rows: Vec<Row>) -> Vec<Row> {
 
 fn get_output_dir() -> String {
     // Get .env from the path of the github repository
-    // TODO: Change this later.
-    const DOTENV_PATH: &str = "/Users/andrescrucettanieto/Library/CloudStorage/OneDrive-WaltzHealth/Documents/Code/hmm/.env";
-    dotenv::from_path(DOTENV_PATH).ok();
+    dotenv().ok();
     match env::var("HMM_OUTPUT_DIR") {
         Ok(val) => return val,
         Err(_) => warn!("HMM_OUTPUT_DIR not set, using current directory"),
