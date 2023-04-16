@@ -33,9 +33,15 @@ The `ls` command allows you to list all your thoughts. To list all your thoughts
 `hmm ls`
 
 ```
-ID, Timestamp, Thought, Tags
-2: 2023-03-20, With Next.js, three types of rendering methods are available: Server-Side Rendering, Static Site Generation, and Client-Side Rendering.,
-3: 2023-03-20, Clean knives before putting them back, cooking
+❯ hmm ls test
+
+#83, 2023-04-16, test
+------------------------@_'-'
+This is a test thought
+
+#84, 2023-04-16, test
+------------------------@_'-'
+This is a test thought 2
 ```
 
 
