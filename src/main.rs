@@ -1,8 +1,8 @@
+mod config;
 pub mod thought;
 
 use chrono::prelude::*;
 use clap::{arg, command, Command};
-use dotenv::dotenv;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -117,18 +117,8 @@ fn remove_thought(id: &String, mut rows: Vec<Row>) -> Vec<Row> {
     rows
 }
 
-fn get_output_dir() -> String {
-    // Get .env from the path of the github repository
-    dotenv().ok();
-    match env::var("HMM_OUTPUT_DIR") {
-        Ok(val) => return val,
-        Err(_) => warn!("HMM_OUTPUT_DIR not set, using current directory"),
-    }
-    let curr_dir = ".";
-    return curr_dir.to_string();
-}
-
 fn main() {
+    let config = config::load_config();
     let matches = command!()
         .subcommand_required(true)
         .arg_required_else_help(true)
@@ -153,7 +143,7 @@ fn main() {
         .subcommand(Command::new("clear").about("Remove all thoughts"))
         .get_matches();
 
-    let file_path = format!("{}/thoughts.csv", get_output_dir());
+    let file_path = format!("{}/thoughts.csv", config.output_dir);
 
     // Load the file into rows
     let mut rows = match load_file_into_rows(&file_path) {
